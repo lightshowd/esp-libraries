@@ -1,0 +1,2 @@
+LightShowWiFi KEYWORD2
+connect KEYWORD2
