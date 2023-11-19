@@ -18,6 +18,7 @@ class LightShowSocket {
   typedef std::function<void()> EventHandler;
   typedef std::function<void(int note)> NoteEventHandler;
   typedef std::function<void(int note, long length, int velocity)> NoteOnEventHandler;
+  typedef std::function<void(int note, long length, int velocity, int *sameNotes, int sameNotesSize)> MultiNoteOnEventHandler;
   typedef std::function<void(int *notes, int length)> MapNotesEventHandler;
 private:
   const char *_id;
@@ -31,6 +32,7 @@ private:
   NoteOnEventHandler onNoteOnHandler;
   NoteEventHandler onNoteOffHandler;
   MapNotesEventHandler onMapNotesHandler;
+  MultiNoteOnEventHandler onMultiNoteOnHandler;
 
   void socketIOEvent(socketIOmessageType_t type, uint8_t *payload, size_t length);
   void registerClient();
@@ -47,6 +49,7 @@ public:
   void onTrackLoad(EventHandler handler);
   void onMapNotes(MapNotesEventHandler handler);
   void onNoteOn(NoteOnEventHandler handler);
+  void onMultiNoteOn(MultiNoteOnEventHandler handler);
   void onNoteOff(NoteEventHandler handler);
   int isNoteInRange(int note);
 };

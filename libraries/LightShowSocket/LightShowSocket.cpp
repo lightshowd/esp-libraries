@@ -30,8 +30,6 @@ int *LightShowSocket::parseNotes(const String &noteStr, int &notesSize) {
     token = strtok(NULL, ",");                                   // Get the next token
   }
   notesSize = i;
-  _notesSize = i;
-  _notes = numArray;
   return numArray;
 }
 
@@ -57,18 +55,22 @@ void LightShowSocket::socketIOEvent(socketIOmessageType_t type, uint8_t *payload
         }
         const String eventName = doc[0];
 
-
-
         if (eventName == EVENT_NOTE_ON || eventName == EVENT_NOTE_OFF) {
           int note = doc[2];
           if (eventName == EVENT_NOTE_ON) {
             long length = doc[3];
             int velocity = doc[5];
-            onNoteOnHandler(note, length, velocity);
+            if (onMultiNoteOnHandler != NULL) {
+              int sameNotesSize = 0;
+              int *sameNotes = parseNotes(doc[4], sameNotesSize);
+              onMultiNoteOnHandler(note, length, velocity, sameNotes, sameNotesSize);
+            } else {
+              onNoteOnHandler(note, length, velocity);
+            }
           } else {
             onNoteOffHandler(note);
           }
-        } else if (eventName == EVENT_NOTES_MAP && onMapNotesHandler != NULL) {
+        } else if (eventName == EVENT_NOTES_MAP) {
           const String clientId = doc[1];
           if (clientId != _id) {
             break;
@@ -76,7 +78,11 @@ void LightShowSocket::socketIOEvent(socketIOmessageType_t type, uint8_t *payload
 
           int notesSize = 0;
           int *notes = parseNotes(doc[3], notesSize);
-          onMapNotesHandler(notes, notesSize);
+          _notesSize = notesSize;
+          _notes = notes;
+          if (onMapNotesHandler != NULL) {
+            onMapNotesHandler(notes, notesSize);
+          }
         }
 
         else if (eventName == EVENT_TRACK_START && onTrackStartHandler != NULL) {
@@ -129,6 +135,10 @@ void LightShowSocket::onTrackLoad(EventHandler handler) {
 
 void LightShowSocket::onNoteOn(NoteOnEventHandler handler) {
   onNoteOnHandler = handler;
+}
+
+void LightShowSocket::onMultiNoteOn(MultiNoteOnEventHandler handler) {
+  onMultiNoteOnHandler = handler;
 }
 
 void LightShowSocket::onNoteOff(NoteEventHandler handler) {

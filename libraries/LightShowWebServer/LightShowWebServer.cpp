@@ -9,7 +9,9 @@ void LightShowWebServer::bindListener(TestHandler handler) {
   server.on("/", [handler, this]() {
     int time = server.arg("time").toInt();
     const char* color = server.arg("color").c_str();
-    handler(time, color);
+    const char* effect = server.arg("effect").c_str();
+    char* passColor = strcmp(color, "null") == 0 ? (char*)NULL : (char*)color;
+    handler(time, passColor, effect);
     this->send();
   });
   server.begin();

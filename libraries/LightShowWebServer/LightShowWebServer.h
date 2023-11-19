@@ -5,7 +5,7 @@
 #include "ESP8266WebServer.h"
 
 class LightShowWebServer {
-  typedef std::function<void(int time, const char* color)> TestHandler;
+  typedef std::function<void(int time, char* color, const char* effect)> TestHandler;
 
 private:
   ESP8266WebServer server;
