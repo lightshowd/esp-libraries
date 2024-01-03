@@ -157,3 +157,7 @@ int LightShowSocket::isNoteInRange(int note) {
   }
   return -1;
 }
+
+int LightShowSocket::getNotesSize() {
+  return _notesSize;
+}

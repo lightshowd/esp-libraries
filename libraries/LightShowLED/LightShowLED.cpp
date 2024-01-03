@@ -152,7 +152,7 @@ void LightShowLED::wave(int time, bool up, char* color = NULL, int fadeBy = 50, 
     while (i < _numLEDs && duration < newTime) {
       for (int j = floor(i); j < floor(i + factor); j++) {
         char* nextColor = color != NULL ? color : getNextColor();
-        Serial.printf("nextColor: %s\n", nextColor);
+        // Serial.printf("nextColor: %s\n", nextColor);
         CHSV color = getHSV(nextColor);
         _leds[j] = color;
         if (doubleWave) {
@@ -198,6 +198,11 @@ void LightShowLED::waveDown(int time) {
   wave(time, false, NULL);
 }
 
+void LightShowLED::waveUpDown(int time, char* color = NULL) {
+  wave(time / 2, true, color);
+  wave(time / 2, false, color);
+}
+
 void LightShowLED::off() {
   fill_solid(_leds, _numLEDs, CRGB::Black);
   FastLED.delay(_maxFrameRate);
@@ -226,7 +231,7 @@ char* LightShowLED::getLastColor() {
 }
 
 void LightShowLED::sinWave(int time, bool up, char* color = NULL) {
-  int newTime = time >= 1000 ? time - ((time / 1000) * 100) : time;
+  int newTime = time * 0.95;
   unsigned long frameRate = _maxFrameRate;
   int bpm = 60 * 1000 / (time / 4);
 
@@ -248,6 +253,35 @@ void LightShowLED::sinWave(int time, bool up, char* color = NULL) {
 
     fadeToBlackBy(_leds, _numLEDs, 10);
     FastLED.delay(frameRate);
+    duration = millis() - start;
+  }
+}
+
+void LightShowLED::sparkles(int time, char* color) {
+  int newTime = time * 0.95;
+  unsigned long frameRate = _maxFrameRate;
+  int bpm = 60 * 1000 / (time / 4);
+
+  // Serial.printf("bpm: %d, newTime: %d\n", bpm, newTime);
+
+  const long start = millis();
+  long duration = 0;
+
+  const int ledSections = _numLEDs / _sectionSize;
+
+  while (duration < newTime) {
+    char* nextColor = color != NULL ? color : getNextColor();
+    CHSV hsvColor = getHSV(nextColor);
+
+    uint8_t rand = random8();
+
+    if (rand < _numLEDs * 1.5) {
+      uint8_t sinBeat = beatsin16(bpm * 8, 0, _numLEDs - 1, 0, 0);
+      _leds[(sinBeat + rand) % _numLEDs] = hsvColor;
+    }
+
+    fadeToBlackBy(_leds, _numLEDs, 10);
+    FastLED.delay(frameRate / 4);
     duration = millis() - start;
   }
 }

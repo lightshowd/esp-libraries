@@ -1,6 +1,7 @@
 
 libraries/*
 !libraries/LightShow*
+!sketches/example-esp-pixels
 sketches
 .vscode/arduino.json    
 .vscode/c_cpp_properties.json 

@@ -30,7 +30,7 @@ public:
   void setup();
   void setFrameRate(uint frameRate);
   void setSectionSize(int sectionSize);
-  void fillColor(char* color);
+  void fillColor(char* color = NULL);
   void rotateFill(int index = 0);
   void fadeUp(int time, char* color);
   void fadeDown(int time, char* color);
@@ -39,9 +39,11 @@ public:
   void waveUp(int time, char* color);
   void waveDown(int time);
   void waveDown(int time, char* color);
+  void waveUpDown(int time, char* color);
   void wave(int time, bool up, char* color, int fadeBy, bool doubleWave);
   void sinWave(int time, bool up, char* color);
   void popFade(int time, char* color = NULL, uint8_t rotateIndex = NULL);
+  void sparkles(int time, char* color = NULL);
   void setColors(char** colors, int size);
   void off();
   char* getNextColor(int index = NULL);

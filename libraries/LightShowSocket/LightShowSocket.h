@@ -52,6 +52,7 @@ public:
   void onMultiNoteOn(MultiNoteOnEventHandler handler);
   void onNoteOff(NoteEventHandler handler);
   int isNoteInRange(int note);
+  int getNotesSize();
 };
 
 
