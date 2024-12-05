@@ -3,14 +3,21 @@
 #include "Arduino.h"
 #include "ESP8266WiFi.h"
 
-LightShowWiFi::LightShowWiFi(const String AP, const String PASSWD) {
+LightShowWiFi::LightShowWiFi(const String AP, const String PASSWD, char *clientName) {
   _AP = AP;
   _PASSWD = PASSWD;
+  _clientName = clientName;
 }
 
 void LightShowWiFi::connect() {
   WiFi.disconnect();
+  WiFi.hostname(_clientName);
   WiFi.begin(_AP, _PASSWD);
+  if (_stationDisconnectedHandler != NULL) {
+    WiFi.onStationModeDisconnected([this](const WiFiEventStationModeDisconnected &event) {
+      _stationDisconnectedHandler();
+    });
+  }
 
   // WiFi.disconnect();
   while (WiFi.status() != WL_CONNECTED) {
@@ -27,4 +34,8 @@ void LightShowWiFi::connect() {
 
 String LightShowWiFi::getIP() {
   return WiFi.localIP().toString();
+}
+
+void LightShowWiFi::onDisconnect(DisconnectHandler disconnectHandler) {
+  _stationDisconnectedHandler = disconnectHandler;
 }

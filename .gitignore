@@ -7,3 +7,4 @@ sketches
 .vscode/c_cpp_properties.json 
 arduino.code-workspace
 .DS_Store
+.history

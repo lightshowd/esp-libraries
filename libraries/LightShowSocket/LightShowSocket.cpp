@@ -56,22 +56,28 @@ void LightShowSocket::socketIOEvent(socketIOmessageType_t type, uint8_t *payload
         const String eventName = doc[0];
 
         if (eventName == EVENT_NOTE_ON || eventName == EVENT_NOTE_OFF) {
-          int note = doc[2];
-          if (eventName == EVENT_NOTE_ON) {
-            long length = doc[3];
-            int velocity = doc[5];
-            if (onMultiNoteOnHandler != NULL) {
-              int sameNotesSize = 0;
-              int *sameNotes = parseNotes(doc[4], sameNotesSize);
-              onMultiNoteOnHandler(note, length, velocity, sameNotes, sameNotesSize);
-            } else {
-              onNoteOnHandler(note, length, velocity);
-            }
-          } else {
-            onNoteOffHandler(note);
+          JsonArray notes = doc[1].as<JsonArray>();
+          if (eventName == EVENT_NOTE_ON && onMultiNoteOnHandler != NULL) {
+            notesOn(notes, onMultiNoteOnHandler);
+            break;
           }
-        } else if (eventName == EVENT_NOTES_MAP) {
+          int noteIndex = eventName == EVENT_NOTE_ON ? isNoteInRange(notes) : isSingleNoteInRange(doc[2]);
+          if (noteIndex == -1) {
+            return;
+          }
+
+          if (eventName == EVENT_NOTE_ON) {
+            long length = doc[2];
+            int velocity = doc[3];
+            onNoteOnHandler(noteIndex, length, velocity);
+          } else {
+            onNoteOffHandler(noteIndex);
+          }
+          break;
+        }
+        if (eventName == EVENT_NOTES_MAP) {
           const String clientId = doc[1];
+          bool isPlaying = doc[5];
           if (clientId != _id) {
             break;
           }
@@ -81,14 +87,34 @@ void LightShowSocket::socketIOEvent(socketIOmessageType_t type, uint8_t *payload
           _notesSize = notesSize;
           _notes = notes;
           if (onMapNotesHandler != NULL) {
-            onMapNotesHandler(notes, notesSize);
+            onMapNotesHandler(notes, notesSize, isPlaying);
           }
+          break;
         }
 
-        else if (eventName == EVENT_TRACK_START && onTrackStartHandler != NULL) {
+        if (eventName == EVENT_TRACK_START && onTrackStartHandler != NULL) {
           onTrackStartHandler();
-        } else if (eventName == EVENT_TRACK_END && onTrackEndHandler != NULL) {
+          break;
+        }
+        if (eventName == EVENT_TRACK_END && onTrackEndHandler != NULL) {
           onTrackEndHandler();
+          break;
+        }
+        if (onOTAEventHandler != NULL && (eventName == EVENT_OTA_ON || eventName == EVENT_OTA_OFF)) {
+          const String clientId = doc[1];
+          if (clientId != _id) {
+            break;
+          }
+          onOTAEventHandler(eventName == EVENT_OTA_ON);
+          break;
+        }
+        if (onClientEnableHandler != NULL && (eventName == EVENT_CLIENT_ENABLE || eventName == EVENT_CLIENT_DISABLE)) {
+          const String clientId = doc[1];
+          if (clientId != _id) {
+            break;
+          }
+          onClientEnableHandler(eventName == EVENT_CLIENT_ENABLE);
+          break;
         }
       }
       break;
@@ -149,13 +175,42 @@ void LightShowSocket::onMapNotes(MapNotesEventHandler handler) {
   onMapNotesHandler = handler;
 }
 
-int LightShowSocket::isNoteInRange(int note) {
+void LightShowSocket::onOTAEvent(OTAEventHandler handler) {
+  onOTAEventHandler = handler;
+}
+
+void LightShowSocket::onClientEnable(ClientEnableHandler handler) {
+  onClientEnableHandler = handler;
+}
+
+int LightShowSocket::isNoteInRange(JsonArray notes) {
+  for (int x = 0; x < _notesSize; x++) {
+    for (JsonVariant note : notes) {
+      if (_notes[x] == note.as<int>()) {
+        return x;
+      }
+    }
+  }
+  return -1;
+}
+
+int LightShowSocket::isSingleNoteInRange(int note) {
   for (int x = 0; x < _notesSize; x++) {
     if (_notes[x] == note) {
       return x;
     }
   }
   return -1;
+}
+
+void LightShowSocket::notesOn(JsonArray notes, MultiNoteOnEventHandler handler) {
+  for (int x = 0; x < _notesSize; x++) {
+    for (JsonVariant note : notes) {
+      if (_notes[x] == note.as<int>()) {
+        handler(x);
+      }
+    }
+  }
 }
 
 int LightShowSocket::getNotesSize() {
