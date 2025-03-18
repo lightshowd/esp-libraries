@@ -13,9 +13,11 @@
 #define DATA_PIN 1
 
 enum class PaletteType {
-  XMAS,
-  HALLOWEEN,
-  USA
+  WHITE = 1,
+  XMAS = 2,
+  HALLOWEEN = 3,
+  USA = 4,
+  BLUE = 5
 };
 
 enum class LEDEffectVelocity {
@@ -40,7 +42,8 @@ private:
   int _colorIndex;
   int _sectionSize;
   int _multiColors;
-  uint _maxFrameRate;
+  int _currentTempo = 0;
+  unsigned long _maxFrameRate;
   char** _colors;
   int _colorsLength;
   char* _lastColor;
@@ -58,12 +61,13 @@ private:
 public:
   LightShowLED(int numLEDs, int brightness = 100, EOrder colorOrder = RGB);
   void setup();
-  void setFrameRate(uint frameRate);
+  void setFrameRate(unsigned long frameRate);
   void setSectionSize(int sectionSize);
   void fillColor(char* color = NULL);
   void fillColorDuration(int time, char* color = NULL);
   void rotateFill(int index = 0);
   void treeFill(int index = 0);
+  void multiFill(int index = 0);
   void fadeUp(int time, char* color);
   void fadeUpOff(int time, char* color);
   void fadeDown(int time, char* color);
@@ -76,8 +80,10 @@ public:
   void wave(int time, bool up, char* color, int fadeBy, bool doubleWave);
   void sinWave(int time, bool up, char* color);
   void popFade(int time, char* color = NULL, uint8_t rotateIndex = NULL);
+  void fadeOut(int time, int fadeBy, int slope);
   void sparkles(int time, char* color = NULL);
   void setColors(char** colors, int size, int multiColors);
+  void setTempo(int tempo);
   void off();
   char* getNextColor(int index = NULL);
   char* getLastColor();

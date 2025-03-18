@@ -63,7 +63,7 @@ void LightShowLED::setup() {
   FastLED.clear(true);
 }
 
-void LightShowLED::setFrameRate(uint frameRate) {
+void LightShowLED::setFrameRate(unsigned long frameRate) {
   _maxFrameRate = frameRate;
 }
 
@@ -114,42 +114,66 @@ void LightShowLED::treeFill(int index) {
     }
   }
 
-  FastLED.delay(_maxFrameRate);
+  FastLED.show();
+  // 48ms
+  FastLED.delay(_maxFrameRate * 3);
+}
+
+void LightShowLED::multiFill(int index) {
+  for (int i = index; i < _numLEDs; ++i) {
+
+    char* nextColor = getNextColor();
+    _leds[i] = getHSV(nextColor);
+  }
+
+  for (int i = index - 1; i > 0; --i) {
+    char* nextColor = getNextColor();
+    _leds[i] = getHSV(nextColor);
+  }
+
+  FastLED.show();
+  // 48ms
+  FastLED.delay(_maxFrameRate * 3);
 }
 
 void LightShowLED::fade(int time, char* color, bool up) {
+  int newTime = time - _maxFrameRate * 2;
+  if (!up) {
+    newTime -= _maxFrameRate * 2;
+  }
   const CHSV hsvColor = getHSV(color == NULL ? getNextColor() : color);
-  unsigned long frameRate = time / hsvColor.v;
-  double factor = 1;
+  unsigned long frameRate = (long)ceil((double)newTime / hsvColor.v);
+  uint8_t factor = 1;
   if (frameRate < _maxFrameRate) {
-    factor = (double)(_maxFrameRate + 2) / (double)frameRate;
+    factor = (uint8_t)ceil((double)_maxFrameRate / frameRate);
     frameRate = _maxFrameRate;
   }
 
-  if (_numLEDs > 200) {
-    factor = factor * 1.5;
-  }
 
   double i = up ? 0 : hsvColor.v;
 
-  long start = millis();
+  // Serial.printf("time: %d, newTime: %d, hsv v %d factor: %d, framerate: %d, maxFrameRate: %d\n", time, newTime, hsvColor.v, factor, frameRate, _maxFrameRate);
 
-  while (up ? i < hsvColor.v : i > 0) {
+  long start = millis();
+  long duration = 0;
+
+  while ((up ? i < hsvColor.v : i > 0) && duration < newTime) {
     int hsvColorValue = up ? ceil(i) : floor(i);
     if (color != NULL) {
       fill_solid(_leds, _numLEDs, CHSV(hsvColor.hue, hsvColor.sat, hsvColorValue));
     } else {
       for (int j = 0; j < _numLEDs; j++) {
-        const CHSV nextColor = getHSV(getNextColor(j));
+        const CHSV nextColor = getHSV(getNextColor());
         _leds[j] = CHSV(nextColor.hue, nextColor.sat, hsvColorValue);
       }
     }
 
-    FastLED.delay(frameRate);
     i = up ? i + factor : i - factor;
+    FastLED.delay(frameRate);
+    duration = millis() - start;
   }
 
-  long duration = millis() - start;
+  //  long duration = millis() - start;
   // Serial.printf("time %d, hue %d, frameRate %d\n", time, hue, frameRate);
   // Serial.printf("factor %f, i %f\n", factor, i);
   // Serial.printf("duration %d\n", duration);
@@ -166,25 +190,21 @@ void LightShowLED::fadeUpOff(int time, char* color) {
 
 void LightShowLED::fadeDown(int time, char* color) {
   fade(time, color, false);
+  off();
 }
 
 
 void LightShowLED::wave(int time, bool up, char* color = NULL, int fadeBy = 51, bool doubleWave = false) {
-  int newTime = time >= 1000 ? time - ((time / 1000) * 100) : time;
+  //int newTime = time >= 1000 ? time - ((time / 1000) * 100) : time;
+  int newTime = time - _maxFrameRate * 2;
 
   unsigned long frameRate = newTime / _numLEDs;
 
-
-
   double factor = 1;
   if (frameRate < _maxFrameRate) {
-    factor = (double)(_maxFrameRate + 2) / (double)frameRate;
+    factor = ceil((double)_maxFrameRate / frameRate);
     frameRate = _maxFrameRate;
-  } else {
-    frameRate -= 2;
   }
-
-  newTime -= frameRate * 8;
 
   double i = up ? 0 : _numLEDs - 1;
   const long start = millis();
@@ -219,11 +239,7 @@ void LightShowLED::wave(int time, bool up, char* color = NULL, int fadeBy = 51, 
     }
   }
 
-  for (int = 0; i < 8; ++i) {
-    fadeToBlackBy(_leds, _numLEDs, fadeBy);
-    FastLED.delay(frameRate);
-  }
-
+  off();
   duration = millis() - start;
 }
 
@@ -287,9 +303,12 @@ char* LightShowLED::getLastColor() {
 }
 
 void LightShowLED::sinWave(int time, bool up, char* color = NULL) {
-  int newTime = time * 0.95;
+  if (_numLEDs > 300) {
+    return;
+  }
+  int newTime = time - _maxFrameRate * 2;
   unsigned long frameRate = _maxFrameRate;
-  int bpm = 60 * 1000 / (time / 4);
+  int bpm = _currentTempo > 0 ? _currentTempo : 60 * 1000 / (time / 4);
 
   // Serial.printf("bpm: %d, newTime: %d\n", bpm, newTime);
 
@@ -308,22 +327,25 @@ void LightShowLED::sinWave(int time, bool up, char* color = NULL) {
     }
 
     fadeToBlackBy(_leds, _numLEDs, 10);
-    FastLED.delay(frameRate);
+    FastLED.delay(frameRate / 4);
     duration = millis() - start;
   }
+
+  off();
 }
 
 void LightShowLED::sparkles(int time, char* color) {
-  int newTime = time;
+  int newTime = time - _maxFrameRate * 2;
   unsigned long frameRate = _maxFrameRate;
-  int bpm = 60 * 1000 / (time / 4);
+  int bpm = _currentTempo > 0 ? _currentTempo : (60 * 1000 / (time / (time < 1000 ? 2 : 4)));
 
-  // Serial.printf("bpm: %d, newTime: %d\n", bpm, newTime);
-  // Serial.println(color);
   const long start = millis();
   long duration = 0;
 
   const int ledSections = _numLEDs / _sectionSize;
+
+  // const int fadeOutTime = _maxFrameRate * (newTime > 1000 ? 8 : 4);
+  // newTime -= fadeOutTime;
 
   while (duration < newTime) {
     char* nextColor = color != NULL ? color : getNextColor();
@@ -332,7 +354,7 @@ void LightShowLED::sparkles(int time, char* color) {
     uint8_t rand = random8();
 
     if (rand < _numLEDs * 1.5) {
-      uint8_t sinBeat = beatsin16(bpm * 8, 0, _numLEDs - 1, 0, 0);
+      uint8_t sinBeat = beatsin16(bpm, 0, _numLEDs - 1, 0, 0);
       _leds[(sinBeat + rand) % _numLEDs] = hsvColor;
     }
 
@@ -340,6 +362,9 @@ void LightShowLED::sparkles(int time, char* color) {
     FastLED.delay(frameRate / 4);
     duration = millis() - start;
   }
+
+  // fadeOut(fadeOutTime, 51, -10);
+  off();
 }
 
 
@@ -362,17 +387,22 @@ void LightShowLED::popFade(int time, char* color, uint8_t rotateIndex) {
 
   FastLED.delay(time / 4);
 
-  int fadeBy = 50;
+  fadeOut(time - (millis() - start), 50, -1);
+}
 
-  while (duration < time) {
-    fadeToBlackBy(_leds, _numLEDs, fadeBy);
+void LightShowLED::fadeOut(int time, int fadeBy, int slope = 0) {
+  int adjFadeBy = fadeBy;
+  const long start = millis();
+  long duration = 0;
+
+  while (duration < time && adjFadeBy >= 0) {
+    fadeToBlackBy(_leds, _numLEDs, adjFadeBy);
     FastLED.delay(_maxFrameRate);
-    fadeBy -= 1;
+    adjFadeBy += slope;
     duration = millis() - start;
   }
 
   off();
-  // Serial.printf("duration %d\n", duration);
 }
 
 
@@ -426,6 +456,9 @@ int LightShowLED::playVelocityEffect(int velocity, int length, char* color, int 
   }
 
   if (rangeIndex == static_cast<int>(LEDEffectVelocity::DOUBLE_WAVE)) {  // double wave
+    if (_numLEDs > 500) {
+      return -1;
+    }
     wave(length, true, color, 50, true);
     return rangeIndex;
   } else {
@@ -435,6 +468,17 @@ int LightShowLED::playVelocityEffect(int velocity, int length, char* color, int 
 
 void LightShowLED::startStandbyPalette(PaletteType paletteType) {
   _paletteType = paletteType;
+
+  if (_paletteType == PaletteType::WHITE) {
+    _paletteTheme = white_palettes;
+    _paletteThemeLength = white_palette_count;
+  }
+
+  if (_paletteType == PaletteType::BLUE) {
+    _paletteTheme = blue_palettes;
+    _paletteThemeLength = blue_palette_count;
+  }
+
   if (_paletteType == PaletteType::XMAS) {
     _paletteTheme = xmas_palettes;
     _paletteThemeLength = xmas_palette_count;
@@ -461,20 +505,24 @@ void LightShowLED::stopStandByPalette() {
 }
 
 void LightShowLED::runStandBy() {
+  static int hueCounter = 1;
   if (_standByPaletteOn == true) {
     // send the 'leds' array out to the actual LED strip
     rainbow();
-    FastLED.show();
-    // insert a delay to keep the framerate modest
-    FastLED.delay(1000 / 120);
+
+    FastLED.delay(_numLEDs < 200 ? 24 : 16);
 
     // do some periodic updates
-    EVERY_N_MILLISECONDS(32) {
-      _gHue = (_gHue + 1) % 256;
-    }  // slowly cycle the "base color" through the rainbow
-    // EVERY_N_SECONDS(30) {
-    //   nextPattern();
-    // }  // change patterns p
+    if (_numLEDs < 200) {
+      hueCounter = (hueCounter + 1) % 2;
+      if (hueCounter == 0) {
+        _gHue = (_gHue + 1) % 256;
+      }
+    } else {
+      EVERY_N_MILLISECONDS(32) {
+        _gHue = (_gHue + 1) % 256;
+      }
+    }
   }
 }
 
@@ -487,5 +535,13 @@ void LightShowLED::nextPattern() {
 }
 
 void LightShowLED::rainbow() {
-  fill_palette(_leds, _numLEDs, _gHue, 3, _currentPalette, 255, LINEARBLEND);
+  if (_numLEDs < 200) {
+    fill_palette_circular(_leds, _numLEDs, _gHue, _currentPalette, 255, LINEARBLEND, false);
+  } else {
+    fill_palette(_leds, _numLEDs, _gHue, 3, _currentPalette, 255, LINEARBLEND);
+  }
+}
+
+void LightShowLED::setTempo(int tempo) {
+  _currentTempo = tempo;
 }

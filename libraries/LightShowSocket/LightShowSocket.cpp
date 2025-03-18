@@ -69,7 +69,8 @@ void LightShowSocket::socketIOEvent(socketIOmessageType_t type, uint8_t *payload
           if (eventName == EVENT_NOTE_ON) {
             long length = doc[2];
             int velocity = doc[3];
-            onNoteOnHandler(noteIndex, length, velocity);
+            int tempo = doc[4];
+            onNoteOnHandler(noteIndex, length, velocity, tempo);
           } else {
             onNoteOffHandler(noteIndex);
           }
@@ -77,7 +78,7 @@ void LightShowSocket::socketIOEvent(socketIOmessageType_t type, uint8_t *payload
         }
         if (eventName == EVENT_NOTES_MAP) {
           const String clientId = doc[1];
-          bool isPlaying = doc[5];
+          int isPlaying = doc[4];
           if (clientId != _id) {
             break;
           }
@@ -87,7 +88,7 @@ void LightShowSocket::socketIOEvent(socketIOmessageType_t type, uint8_t *payload
           _notesSize = notesSize;
           _notes = notes;
           if (onMapNotesHandler != NULL) {
-            onMapNotesHandler(notes, notesSize, isPlaying);
+            onMapNotesHandler(notes, notesSize, isPlaying == 1 ? true : false);
           }
           break;
         }
@@ -98,6 +99,15 @@ void LightShowSocket::socketIOEvent(socketIOmessageType_t type, uint8_t *payload
         }
         if (eventName == EVENT_TRACK_END && onTrackEndHandler != NULL) {
           onTrackEndHandler();
+          break;
+        }
+
+        if (eventName == EVENT_TEMPO_CHANGE) {
+          const int tempo = doc[1];
+          _currentTempo = tempo;
+          if (onTempoChangeHandler != NULL) {
+            onTempoChangeHandler(tempo);
+          }
           break;
         }
         if (onOTAEventHandler != NULL && (eventName == EVENT_OTA_ON || eventName == EVENT_OTA_OFF)) {
@@ -175,6 +185,10 @@ void LightShowSocket::onMapNotes(MapNotesEventHandler handler) {
   onMapNotesHandler = handler;
 }
 
+void LightShowSocket::onTempoChange(TempoChangeEventHandler handler) {
+  onTempoChangeHandler = handler;
+}
+
 void LightShowSocket::onOTAEvent(OTAEventHandler handler) {
   onOTAEventHandler = handler;
 }
@@ -215,4 +229,8 @@ void LightShowSocket::notesOn(JsonArray notes, MultiNoteOnEventHandler handler) 
 
 int LightShowSocket::getNotesSize() {
   return _notesSize;
+}
+
+int LightShowSocket::getTempo() {
+  return _currentTempo;
 }
